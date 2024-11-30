@@ -1,0 +1,15 @@
+services:
+  redis:
+    image: redis/redis-stack:latest
+    restart: always
+    ports:
+      - 7401:6379
+  postgres:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_DB: dev
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+    ports:
+      - 7402:5432
