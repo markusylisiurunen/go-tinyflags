@@ -48,6 +48,7 @@ func (s *MemoryStore) Read(ctx context.Context, k string) ([]byte, error) {
 		s.mu.RUnlock()
 		return nil, nil
 	}
+	k = s.key(ctx, k)
 	if v, ok := s.values[k]; ok {
 		if v.expires.Before(time.Now()) {
 			s.mu.RUnlock()
@@ -69,6 +70,7 @@ func (s *MemoryStore) Write(ctx context.Context, k string, v []byte) error {
 	if !s.active {
 		return nil
 	}
+	k = s.key(ctx, k)
 	if v == nil {
 		delete(s.values, k)
 		s.invalidate(k) // nolint:errcheck
@@ -77,6 +79,14 @@ func (s *MemoryStore) Write(ctx context.Context, k string, v []byte) error {
 	s.values[k] = memoryStoreValue{v, time.Now().Add(s.ttl)}
 	s.invalidate(k) // nolint:errcheck
 	return nil
+}
+
+func (s *MemoryStore) scope(_ context.Context, _ string) string {
+	return "global"
+}
+
+func (s *MemoryStore) key(ctx context.Context, k string) string {
+	return s.scope(ctx, k) + "::" + k
 }
 
 func (s *MemoryStore) activate() {

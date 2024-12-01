@@ -19,39 +19,39 @@ create table if not exists :SCHEMA.flags (
 	id bigserial primary key,
 	created_at timestamptz not null default now(),
 	updated_at timestamptz,
+	scope text not null,
 	key text not null,
 	value jsonb not null
 )
 `
 
-var queryCreateKeyIndex = `
-create unique index if not exists :SCHEMA_flags_key_idx
-on :SCHEMA.flags (key)
+var queryCreateScopeKeyIndex = `
+create unique index if not exists :SCHEMA_flags_scope_key_idx
+on :SCHEMA.flags (scope, key)
 `
 
-var queryCreateKeyValueIndex = `
-create index if not exists :SCHEMA_flags_key_value_idx
-on :SCHEMA.flags (key, value)
+var queryCreateScopeKeyValueIndex = `
+create index if not exists :SCHEMA_flags_scope_key_value_idx
+on :SCHEMA.flags (scope, key, value)
 `
 
 var queryReadFlag = `
 select value
 from :SCHEMA.flags
-where key = $1
+where scope = $1 and key = $2
 `
 
 var queryUpsertFlag = `
-insert into :SCHEMA.flags (key, value)
-values ($1, $2)
-on conflict (key) do update set
-	value = $2,
+insert into :SCHEMA.flags (scope, key, value)
+values ($1, $2, $3)
+on conflict (scope, key) do update set
+	value = $3,
 	updated_at = now()
-returning id
 `
 
 var queryDeleteFlag = `
 delete from :SCHEMA.flags
-where key = $1
+where scope = $1 and key = $2
 `
 
 type PostgresStore struct {
@@ -83,7 +83,7 @@ func (s *PostgresStore) Read(ctx context.Context, k string) ([]byte, error) {
 		return nil, err
 	}
 	var v []byte
-	row := s.client.QueryRowContext(ctx, strings.ReplaceAll(queryReadFlag, ":SCHEMA", s.schema), k)
+	row := s.client.QueryRowContext(ctx, strings.ReplaceAll(queryReadFlag, ":SCHEMA", s.schema), s.scope(ctx, k), k)
 	if err := row.Scan(&v); err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil
@@ -97,12 +97,17 @@ func (s *PostgresStore) Write(ctx context.Context, k string, v []byte) error {
 	if err := s.migrate(ctx); err != nil {
 		return err
 	}
+	scope := s.scope(ctx, k)
 	if v == nil {
-		_, err := s.client.ExecContext(ctx, strings.ReplaceAll(queryDeleteFlag, ":SCHEMA", s.schema), k)
+		_, err := s.client.ExecContext(ctx, strings.ReplaceAll(queryDeleteFlag, ":SCHEMA", s.schema), scope, k)
 		return err
 	}
-	_, err := s.client.ExecContext(ctx, strings.ReplaceAll(queryUpsertFlag, ":SCHEMA", s.schema), k, v)
+	_, err := s.client.ExecContext(ctx, strings.ReplaceAll(queryUpsertFlag, ":SCHEMA", s.schema), scope, k, v)
 	return err
+}
+
+func (s *PostgresStore) scope(_ context.Context, _ string) string {
+	return "global"
 }
 
 func (s *PostgresStore) migrate(ctx context.Context) error {
@@ -116,8 +121,8 @@ func (s *PostgresStore) migrate(ctx context.Context) error {
 		queries := []string{
 			queryCreateSchema,
 			queryCreateTable,
-			queryCreateKeyIndex,
-			queryCreateKeyValueIndex,
+			queryCreateScopeKeyIndex,
+			queryCreateScopeKeyValueIndex,
 		}
 		for _, query := range queries {
 			_, err = tx.Exec(strings.ReplaceAll(query, ":SCHEMA", s.schema))

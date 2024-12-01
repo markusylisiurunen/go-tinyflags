@@ -31,7 +31,7 @@ func NewRedisStore(client *redis.Client, ns string, opts ...redisStoreOption) *R
 }
 
 func (s *RedisStore) Read(ctx context.Context, k string) ([]byte, error) {
-	v, err := s.client.Get(ctx, s.key(k)).Bytes()
+	v, err := s.client.Get(ctx, s.key(ctx, k)).Bytes()
 	if err == redis.Nil {
 		return nil, nil
 	}
@@ -40,11 +40,15 @@ func (s *RedisStore) Read(ctx context.Context, k string) ([]byte, error) {
 
 func (s *RedisStore) Write(ctx context.Context, k string, v []byte) error {
 	if v == nil {
-		return s.client.Del(ctx, s.key(k)).Err()
+		return s.client.Del(ctx, s.key(ctx, k)).Err()
 	}
-	return s.client.Set(ctx, s.key(k), v, s.ttl).Err()
+	return s.client.Set(ctx, s.key(ctx, k), v, s.ttl).Err()
 }
 
-func (s *RedisStore) key(k string) string {
-	return strings.Join([]string{"tinyflags", "redisStore", s.ns, k}, "::")
+func (s *RedisStore) scope(_ context.Context, _ string) string {
+	return "global"
+}
+
+func (s *RedisStore) key(ctx context.Context, k string) string {
+	return strings.Join([]string{"tinyflags", "redisStore", s.ns, s.scope(ctx, k), k}, "::")
 }
