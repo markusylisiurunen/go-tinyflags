@@ -34,7 +34,7 @@ func StackReadWrite(ctx context.Context) {
 		fmt.Printf("error pinging redis: %v\n", err)
 		return
 	}
-	// initialise the managers
+	// initialise the instances
 	flags1 := tinyflags.New(
 		tinyflags.NewMemoryStore(redisClient),
 		tinyflags.NewRedisStore(redisClient, "example"),
@@ -47,7 +47,7 @@ func StackReadWrite(ctx context.Context) {
 		tinyflags.NewPostgresStore(postgresClient),
 		tinyflags.NewConstantStore().With(rateLimitFlagName, 8),
 	)
-	// read the flag from both managers
+	// read the flag from both instances
 	rateLimitFlag1 := tinyflags.NewIntFlag(rateLimitFlagName)
 	rateLimitFlag2 := tinyflags.NewIntFlag(rateLimitFlagName)
 	if err := flags1.Read(ctx, &rateLimitFlag1); err != nil {
@@ -61,14 +61,14 @@ func StackReadWrite(ctx context.Context) {
 	fmt.Printf("rate limit 1: %d\n", rateLimitFlag1.Get())
 	fmt.Printf("rate limit 2: %d\n", rateLimitFlag2.Get())
 	time.Sleep(longWait)
-	// write a new value to manager 1
+	// write a new value to instance 1
 	rateLimitFlag1 = tinyflags.NewIntFlag(rateLimitFlagName).With(16)
 	if err := flags1.Write(ctx, &rateLimitFlag1); err != nil {
 		fmt.Printf("error writing flags: %v\n", err)
 		return
 	}
 	time.Sleep(tinyWait)
-	// read the flag again from both managers
+	// read the flag again from both instances
 	rateLimitFlag1 = tinyflags.NewIntFlag(rateLimitFlagName)
 	rateLimitFlag2 = tinyflags.NewIntFlag(rateLimitFlagName)
 	if err := flags1.Read(ctx, &rateLimitFlag1); err != nil {

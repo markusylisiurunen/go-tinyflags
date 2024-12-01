@@ -8,7 +8,7 @@ import (
 )
 
 func SimpleRead(ctx context.Context) {
-	manager := tinyflags.New(
+	flags := tinyflags.New(
 		tinyflags.NewConstantStore().
 			With("language", "en").
 			With("reduced_motion", true),
@@ -17,7 +17,7 @@ func SimpleRead(ctx context.Context) {
 		languageFlag      = tinyflags.NewStringFlag("language")
 		reducedMotionFlag = tinyflags.NewBoolFlag("reduced_motion")
 	)
-	if err := manager.Read(ctx, &languageFlag, &reducedMotionFlag); err != nil {
+	if err := flags.Read(ctx, &languageFlag, &reducedMotionFlag); err != nil {
 		fmt.Printf("error reading flags: %v\n", err)
 		return
 	}
@@ -26,12 +26,12 @@ func SimpleRead(ctx context.Context) {
 }
 
 func SimpleWrite(ctx context.Context) {
-	manager := tinyflags.New(tinyflags.NewConstantStore())
+	flags := tinyflags.New(tinyflags.NewConstantStore())
 	var (
 		languageFlag      = tinyflags.NewStringFlag("language").With("en")
 		reducedMotionFlag = tinyflags.NewBoolFlag("reduced_motion").With(true)
 	)
-	if err := manager.Write(ctx, &languageFlag, &reducedMotionFlag); err != nil {
+	if err := flags.Write(ctx, &languageFlag, &reducedMotionFlag); err != nil {
 		fmt.Printf("error writing flags: %v\n", err)
 		return
 	}
