@@ -46,5 +46,5 @@ func (s *RedisStore) Write(ctx context.Context, k string, v []byte) error {
 }
 
 func (s *RedisStore) key(k string) string {
-	return strings.Join([]string{s.ns, k}, "::")
+	return strings.Join([]string{"tinyflags", "redisStore", s.ns, k}, "::")
 }
