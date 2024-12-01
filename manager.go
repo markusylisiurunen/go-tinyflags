@@ -61,7 +61,9 @@ func (m *Manager) Read(ctx context.Context, flags ...any) error {
 				}
 				delete(remaining, flag.index)
 				for i := idx - 1; i >= 0; i-- {
-					m.stores[i].Write(ctx, flag.value.key(), b) // nolint: errcheck
+					if err := m.stores[i].Write(ctx, flag.value.key(), b); err != nil {
+						logger.Errorf(ctx, "failed to write flag %s to store %T at index %d: %v", flag.value.key(), m.stores[i], i, err)
+					}
 				}
 			}
 		}
@@ -87,16 +89,21 @@ func (m *Manager) Write(ctx context.Context, flags ...any) error {
 		}
 		flaggers = append(flaggers, flag.(flagger))
 	}
+	values := make([][]byte, 0, len(flaggers))
+	for _, flag := range flaggers {
+		b, err := flag.emit()
+		if err != nil {
+			return err
+		}
+		values = append(values, b)
+	}
 	var lastErr error
 	for i := len(m.stores) - 1; i >= 0; i-- {
 		store := m.stores[i]
-		for _, flag := range flaggers {
-			b, err := flag.emit()
-			if err != nil {
-				lastErr = err
-				continue
-			}
+		for idx, flag := range flaggers {
+			b := values[idx]
 			if err := store.Write(ctx, flag.key(), b); err != nil {
+				logger.Errorf(ctx, "failed to write flag %s to store %T at index %d: %v", flag.key(), store, i, err)
 				lastErr = err
 			}
 		}

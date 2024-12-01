@@ -99,7 +99,11 @@ func (s *MemoryStore) invalidationsChannelName() string {
 
 func (s *MemoryStore) invalidate(k string) error {
 	ctx := context.Background()
-	return s.client.Publish(ctx, s.invalidationsChannelName(), k).Err()
+	err := s.client.Publish(ctx, s.invalidationsChannelName(), k).Err()
+	if err != nil {
+		logger.Errorf(ctx, "failed to invalidate '%s': %v", k, err)
+	}
+	return err
 }
 
 func (s *MemoryStore) listen() {
@@ -109,9 +113,11 @@ func (s *MemoryStore) listen() {
 		for {
 			if err := s.subscribe(); err != nil {
 				s.deactivate()
-				if s.client.Ping(ctx).Err() != nil {
+				if err := s.client.Ping(ctx).Err(); err != nil {
+					logger.Errorf(ctx, "stopped listening for invalidations because ping failed: %v", err)
 					return
 				}
+				logger.Errorf(ctx, "listening for invalidations returned an error, retrying in ~1s: %v", err)
 				delay := 1000
 				time.Sleep(time.Duration(delay/2+r.Intn(delay)) * time.Millisecond)
 				continue
