@@ -64,7 +64,6 @@ func (s *MemoryStore) Read(ctx context.Context, k string) ([]byte, error) {
 }
 
 func (s *MemoryStore) Write(ctx context.Context, k string, v []byte) error {
-	defer s.invalidate(k) // nolint:errcheck
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if !s.active {
@@ -72,9 +71,11 @@ func (s *MemoryStore) Write(ctx context.Context, k string, v []byte) error {
 	}
 	if v == nil {
 		delete(s.values, k)
+		s.invalidate(k) // nolint:errcheck
 		return nil
 	}
 	s.values[k] = memoryStoreValue{v, time.Now().Add(s.ttl)}
+	s.invalidate(k) // nolint:errcheck
 	return nil
 }
 

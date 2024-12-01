@@ -26,6 +26,11 @@ create table if not exists :SCHEMA.flags (
 
 var queryCreateKeyIndex = `
 create unique index if not exists :SCHEMA_flags_key_idx
+on :SCHEMA.flags (key)
+`
+
+var queryCreateKeyValueIndex = `
+create index if not exists :SCHEMA_flags_key_value_idx
 on :SCHEMA.flags (key, value)
 `
 
@@ -112,6 +117,7 @@ func (s *PostgresStore) migrate(ctx context.Context) error {
 			queryCreateSchema,
 			queryCreateTable,
 			queryCreateKeyIndex,
+			queryCreateKeyValueIndex,
 		}
 		for _, query := range queries {
 			_, err = tx.Exec(strings.ReplaceAll(query, ":SCHEMA", s.schema))
