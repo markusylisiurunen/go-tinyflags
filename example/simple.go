@@ -10,7 +10,7 @@ import (
 func SimpleRead(ctx context.Context) {
 	manager := tinyflags.New(
 		tinyflags.NewConstantStore().
-			With("language", "end").
+			With("language", "en").
 			With("reduced_motion", true),
 	)
 	var (
