@@ -136,6 +136,7 @@ func (s *MemoryStore) listen() {
 			err := s.subscribe()
 			s.mu.Lock()
 			s.isActive = false
+			s.values = make(map[string]memoryStoreValue)
 			s.mu.Unlock()
 			if err == nil {
 				logger.Debugf("subscribe returned without an error")
@@ -175,7 +176,6 @@ func (s *MemoryStore) subscribe() error {
 	c := s.pubsub.Channel()
 	s.mu.Lock()
 	s.isActive = true
-	s.values = make(map[string]memoryStoreValue)
 	s.mu.Unlock()
 	for {
 		select {
