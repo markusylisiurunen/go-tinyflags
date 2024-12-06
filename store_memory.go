@@ -101,10 +101,12 @@ func (s *MemoryStore) Close() error {
 		s.mu.Lock()
 		defer s.mu.Unlock()
 		if !s.isClosed {
+			logger.Debugf("closing memory store")
 			close(s.done)
 			s.isClosed = true
 		}
 		if s.pubsub != nil {
+			logger.Debugf("closing an active pubsub connection")
 			err = s.pubsub.Close()
 		}
 	})
@@ -136,6 +138,7 @@ func (s *MemoryStore) listen() {
 			s.isActive = false
 			s.mu.Unlock()
 			if err == nil {
+				logger.Debugf("subscribe returned without an error")
 				return
 			}
 			if err := s.client.Ping(ctx).Err(); err != nil {
@@ -155,9 +158,11 @@ func (s *MemoryStore) subscribe() error {
 		return nil
 	default:
 	}
+	logger.Debugf("subscribing to key invalidations")
 	ctx := context.Background()
 	s.mu.Lock()
 	if s.pubsub != nil {
+		logger.Debugf("closing an existing pubsub connection")
 		s.pubsub.Close() //nolint:errcheck
 	}
 	s.pubsub = s.client.Subscribe(ctx, s.getInvalidationsChannel())
@@ -179,6 +184,7 @@ func (s *MemoryStore) subscribe() error {
 			if !ok {
 				return errors.New("subscription closed")
 			}
+			logger.Debugf("received invalidation for '%s'", msg.Payload)
 			s.mu.Lock()
 			delete(s.values, msg.Payload)
 			s.mu.Unlock()
