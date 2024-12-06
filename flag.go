@@ -1,6 +1,9 @@
 package tinyflags
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"errors"
+)
 
 type (
 	BoolFlag    = Flag[bool]
@@ -27,6 +30,7 @@ type flagger interface {
 }
 
 type _flag struct {
+	i bool
 	k string
 }
 
@@ -44,6 +48,7 @@ func NewFlag[V any](k string) Flag[V] {
 }
 
 func (f Flag[V]) With(v V) Flag[V] {
+	f.i = true
 	f.v = v
 	return f
 }
@@ -53,13 +58,21 @@ func (f *Flag[V]) Get() V {
 }
 
 func (f *Flag[V]) Set(v V) {
+	f.i = true
 	f.v = v
 }
 
 func (f *Flag[V]) emit() ([]byte, error) {
+	if !f.i {
+		return nil, errors.New("tried to write an unset flag; use With() or Set() to set a value first")
+	}
 	return json.Marshal(f.v)
 }
 
 func (f *Flag[V]) absorb(b []byte) error {
-	return json.Unmarshal(b, &f.v)
+	if err := json.Unmarshal(b, &f.v); err != nil {
+		return err
+	}
+	f.i = true
+	return nil
 }
