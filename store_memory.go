@@ -142,12 +142,14 @@ func (s *MemoryStore) listen() {
 				return
 			}
 			if err := s.client.Ping(ctx).Err(); err != nil {
-				logger.Errorf(ctx, "stopped listening for invalidations because ping failed: %v", err)
-				return
+				logger.Errorf(ctx, "redis client ping returned an error, retrying in ~10s: %v", err)
+				delay, jitter := 10000, 2000
+				time.Sleep(time.Duration(delay-(jitter/2)+r.Intn(jitter)) * time.Millisecond)
+			} else {
+				logger.Errorf(ctx, "listening for invalidations returned an error, retrying in ~1s: %v", err)
+				delay, jitter := 1000, 500
+				time.Sleep(time.Duration(delay-(jitter/2)+r.Intn(jitter)) * time.Millisecond)
 			}
-			logger.Errorf(ctx, "listening for invalidations returned an error, retrying in ~1s: %v", err)
-			delay := 1000
-			time.Sleep(time.Duration(delay/2+r.Intn(delay)) * time.Millisecond)
 		}
 	}()
 }
