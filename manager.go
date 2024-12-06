@@ -110,3 +110,14 @@ func (m *Manager) Write(ctx context.Context, flags ...any) error {
 	}
 	return lastErr
 }
+
+func (m *Manager) Close() error {
+	var lastErr error
+	for idx := len(m.stores) - 1; idx >= 0; idx-- {
+		if err := m.stores[idx].Close(); err != nil {
+			logger.Errorf(context.Background(), "failed to close store %T at index %d: %v", m.stores[idx], idx, err)
+			lastErr = err
+		}
+	}
+	return lastErr
+}

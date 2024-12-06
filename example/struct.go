@@ -17,6 +17,7 @@ func StructReadWrite(ctx context.Context) {
 		tinyflags.NewConstantStore().
 			With("custom", CustomStruct{true, "hello world"}),
 	)
+	defer flags.Close()
 	var (
 		customFlag = tinyflags.NewFlag[CustomStruct]("custom")
 	)

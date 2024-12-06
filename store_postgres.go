@@ -106,6 +106,10 @@ func (s *PostgresStore) Write(ctx context.Context, k string, v []byte) error {
 	return err
 }
 
+func (s *PostgresStore) Close() error {
+	return nil
+}
+
 func (s *PostgresStore) scope(_ context.Context, _ string) string {
 	return "global"
 }
@@ -117,7 +121,7 @@ func (s *PostgresStore) migrate(ctx context.Context) error {
 			s.migrateErr = err
 			return
 		}
-		defer tx.Rollback() // nolint:errcheck
+		defer tx.Rollback() //nolint:errcheck
 		queries := []string{
 			queryCreateSchema,
 			queryCreateTable,

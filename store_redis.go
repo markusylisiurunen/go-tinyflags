@@ -45,6 +45,10 @@ func (s *RedisStore) Write(ctx context.Context, k string, v []byte) error {
 	return s.client.Set(ctx, s.key(ctx, k), v, s.ttl).Err()
 }
 
+func (s *RedisStore) Close() error {
+	return nil
+}
+
 func (s *RedisStore) scope(_ context.Context, _ string) string {
 	return "global"
 }

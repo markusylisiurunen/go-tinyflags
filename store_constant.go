@@ -35,3 +35,7 @@ func (s *ConstantStore) Read(_ context.Context, k string) ([]byte, error) {
 func (s *ConstantStore) Write(_ context.Context, k string, v []byte) error {
 	return nil
 }
+
+func (s *ConstantStore) Close() error {
+	return nil
+}

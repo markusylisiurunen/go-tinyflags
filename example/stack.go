@@ -41,12 +41,14 @@ func StackReadWrite(ctx context.Context) {
 		tinyflags.NewPostgresStore(postgresClient),
 		tinyflags.NewConstantStore().With(rateLimitFlagName, 8),
 	)
+	defer flags1.Close()
 	flags2 := tinyflags.New(
 		tinyflags.NewMemoryStore(redisClient),
 		tinyflags.NewRedisStore(redisClient, "example"),
 		tinyflags.NewPostgresStore(postgresClient),
 		tinyflags.NewConstantStore().With(rateLimitFlagName, 8),
 	)
+	defer flags2.Close()
 	// read the flag from both instances
 	rateLimitFlag1 := tinyflags.NewIntFlag(rateLimitFlagName)
 	rateLimitFlag2 := tinyflags.NewIntFlag(rateLimitFlagName)

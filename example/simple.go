@@ -13,6 +13,7 @@ func SimpleRead(ctx context.Context) {
 			With("language", "en").
 			With("reduced_motion", true),
 	)
+	defer flags.Close()
 	var (
 		languageFlag      = tinyflags.NewStringFlag("language")
 		reducedMotionFlag = tinyflags.NewBoolFlag("reduced_motion")
@@ -27,6 +28,7 @@ func SimpleRead(ctx context.Context) {
 
 func SimpleWrite(ctx context.Context) {
 	flags := tinyflags.New(tinyflags.NewConstantStore())
+	defer flags.Close()
 	var (
 		languageFlag      = tinyflags.NewStringFlag("language").With("en")
 		reducedMotionFlag = tinyflags.NewBoolFlag("reduced_motion").With(true)
