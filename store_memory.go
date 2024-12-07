@@ -2,8 +2,12 @@ package tinyflags
 
 import (
 	"context"
+	crand "crypto/rand"
+	"crypto/sha1"
+	"encoding/hex"
 	"errors"
-	"math/rand"
+	"fmt"
+	mrand "math/rand"
 	"strings"
 	"sync"
 	"time"
@@ -13,10 +17,12 @@ import (
 
 type memoryStoreValue struct {
 	value   []byte
+	hash    string
 	expires time.Time
 }
 
 type MemoryStore struct {
+	id        string
 	client    *redis.Client
 	pubsub    *redis.PubSub
 	mu        sync.RWMutex
@@ -37,7 +43,12 @@ func WithMemoryStoreTTL(ttl time.Duration) memoryStoreOption {
 }
 
 func NewMemoryStore(client *redis.Client, opts ...memoryStoreOption) *MemoryStore {
+	b := make([]byte, 16)
+	if _, err := crand.Read(b); err != nil {
+		panic(err)
+	}
 	s := &MemoryStore{
+		id:        hex.EncodeToString(b),
 		client:    client,
 		pubsub:    nil,
 		mu:        sync.RWMutex{},
@@ -87,11 +98,16 @@ func (s *MemoryStore) Write(ctx context.Context, k string, v []byte) error {
 	k = s.getKey(k)
 	if v == nil {
 		delete(s.values, k)
-		s.triggerInvalidation(k)
+		s.triggerInvalidation("", k)
 		return nil
 	}
-	s.values[k] = memoryStoreValue{v, time.Now().Add(s.ttl)}
-	s.triggerInvalidation(k)
+	h := sha1.New()
+	if _, err := h.Write(v); err != nil {
+		return err
+	}
+	hash := hex.EncodeToString(h.Sum(nil))
+	s.values[k] = memoryStoreValue{v, hash, time.Now().Add(s.ttl)}
+	s.triggerInvalidation(hash, k)
 	return nil
 }
 
@@ -120,17 +136,17 @@ func (s *MemoryStore) getInvalidationsChannel() string {
 	return strings.Join([]string{"tinyflags", "memoryStore", "invalidations"}, "::")
 }
 
-func (s *MemoryStore) triggerInvalidation(k string) {
+func (s *MemoryStore) triggerInvalidation(hash, key string) {
 	ctx := context.Background()
-	err := s.client.Publish(ctx, s.getInvalidationsChannel(), k).Err()
+	err := s.client.Publish(ctx, s.getInvalidationsChannel(), fmt.Sprintf("%s:%s:%s", s.id, hash, key)).Err()
 	if err != nil {
-		logger.Errorf(ctx, "failed to invalidate '%s': %v", k, err)
+		logger.Errorf(ctx, "failed to invalidate '%s': %v", key, err)
 	}
 }
 
 func (s *MemoryStore) listen() {
 	ctx := context.Background()
-	r := rand.New(rand.NewSource(time.Now().UnixNano()))
+	r := mrand.New(mrand.NewSource(time.Now().UnixNano()))
 	go func() {
 		for {
 			err := s.subscribe()
@@ -186,9 +202,17 @@ func (s *MemoryStore) subscribe() error {
 			if !ok {
 				return errors.New("subscription closed")
 			}
-			logger.Debugf("received invalidation for '%s'", msg.Payload)
+			parts := strings.SplitN(msg.Payload, ":", 3)
+			if len(parts) != 3 || parts[0] == s.id {
+				logger.Debugf("skipping invalidation for '%s'", msg.Payload)
+				continue
+			}
 			s.mu.Lock()
-			delete(s.values, msg.Payload)
+			hash, key := parts[1], parts[2]
+			if v, ok := s.values[key]; ok && v.hash != hash {
+				logger.Debugf("invalidating '%s'", key)
+				delete(s.values, key)
+			}
 			s.mu.Unlock()
 		}
 	}
